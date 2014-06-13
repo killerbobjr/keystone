@@ -10,7 +10,14 @@ var fs = require('fs'),
 	numeral = require('numeral'),
 	cloudinary = require('cloudinary'),
 	mandrillapi = require('mandrill-api'),
-	utils = require('keystone-utils');
+	utils = require('keystone-utils'),
+	compress = require('compression'),
+	logger = require('morgan'),
+	bodyParser = require('body-parser'),
+	methodOverride = require('method-override'),
+	cookieParser = require('cookie-parser'),
+	expressSession = require('express-session'),
+	favicon = require('serve-favicon');
 
 var templateCache = {};
 
@@ -517,11 +524,11 @@ Keystone.prototype.mount = function(mountPath, parentApp, events) {
 	// Serve static assets
 	
 	if (this.get('compress')) {
-		app.use(express.compress());
+		app.use(compress());
 	}
 	
 	if (this.get('favico')) {
-		app.use(express.favicon(this.getPath('favico')));
+		app.use(favicon(this.getPath('favico')));
 	}
 	
 	if (this.get('less')) {
@@ -563,28 +570,32 @@ Keystone.prototype.mount = function(mountPath, parentApp, events) {
 	// Handle dynamic requests
 
 	if (this.get('logger')) {
-		app.use(express.logger(this.get('logger')));
+		app.use(logger(this.get('logger')));
 	}
 	
-	app.use(express.bodyParser());
-	app.use(express.methodOverride());
+	app.use(bodyParser());
+	app.use(methodOverride());
 	
-	app.sessionOpts = {
+	var secret = this.get('cookie secret') === null ? 'keystone':this.get('cookie secret');
+	var sessionOpts = {
 		key: 'keystone.sid',
-		cookieParser: express.cookieParser(this.get('cookie secret') === undefined ? 'keystone':this.get('cookie secret'))
+		secret: secret,
+		cookieParser: cookieParser(secret),
+		fingerprint: function(){ return ''; }
 	};
 	
-	app.use(app.sessionOpts.cookieParser);
+	app.use(sessionOpts.cookieParser);
 	
 	if (this.get('session store') == 'mongo') {
-		var MongoStore = require('connect-mongo')(express);
-		app.sessionOpts.store = new MongoStore({
+		var MongoStore = require('connect-mongo')(expressSession);
+		sessionOpts.store = new MongoStore({
 			url: this.get('mongo'),
 			collection: 'app_sessions'
 		});
 	}
 	
-	app.use(express.session(app.sessionOpts));
+	app.use(expressSession(sessionOpts));
+	keystone.set('session options', sessionOpts);
 	
 	app.use(require('connect-flash')());
 	
@@ -605,7 +616,7 @@ Keystone.prototype.mount = function(mountPath, parentApp, events) {
 	// Check for IP range restrictions
 	
 	if (this.get('allowed ip ranges')) {
-		if (!app.get('trust proxy')) {
+		if (!app.route.get('trust proxy')) {
 			throw new Error("KeystoneJS Initialisaton Error:\n\nto set IP range restrictions the 'trust proxy' setting must be enabled.\n\n");
 		}
 		var ipRangeMiddleware = require('./lib/security').ipRangeRestrict(
@@ -629,9 +640,9 @@ Keystone.prototype.mount = function(mountPath, parentApp, events) {
 		}
 	});
 	
-	// Route requests
-	
-	app.use(app.router);
+	if ('function' === typeof this.get('routes')) {
+		this.get('routes')(app);
+	}
 
 	// Headless mode means don't bind the Keystone routes
 	
@@ -1150,7 +1161,7 @@ Keystone.prototype.bindEmailTestRoutes = function(app, emails) {
 			});
 		};
 
-		app.get('/keystone/test-email/' + key, function(req, res) {
+		app.route('/keystone/test-email/' + key).get(function(req, res) {
 			if ('function' === typeof vars) {
 				vars(req, res, function(err, locals) {
 					render(err, req, res, locals);
