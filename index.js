@@ -17,7 +17,8 @@ var fs = require('fs'),
 	methodOverride = require('method-override'),
 	cookieParser = require('cookie-parser'),
 	expressSession = require('express-session'),
-	favicon = require('serve-favicon');
+	favicon = require('serve-favicon'),
+	MongoStore = require('connect-mongo')(expressSession);
 
 var templateCache = {};
 
@@ -485,6 +486,47 @@ Keystone.prototype.mount = function(mountPath, parentApp, events) {
 		this.set('mongo', dbUrl);
 	}
 	
+	// Connect to database
+	
+	var mongoConnectionOpen = false;
+	
+	this.mongoose.connect(this.get('mongo'));
+	this.mongoose.connection.on('error', function(err) {
+		
+		if (keystone.get('logger')) {
+			console.log('------------------------------------------------');
+			console.log('Mongo Error:\n');
+			console.log(err);
+		}
+		
+		if (mongoConnectionOpen) {
+			throw new Error("Mongo Error");
+		} else {
+			throw new Error("KeystoneJS (" + keystone.get('name') + ") failed to start");
+		}
+		
+	}).on('open', function() {
+		
+		// app is mounted and db connection acquired, time to update and then call back
+		
+		// Apply updates?
+		if (keystone.get('auto update')) {
+			keystone.applyUpdates(events.onMount);
+		} else {
+			events.onMount && events.onMount();
+		}
+		
+	});
+
+	// Create a cookie store in the database. Must be connected before express loads its routes,
+	// otherwise the database TTL will expire before it connects
+	
+	var sessionStore = new MongoStore({
+		db: this.mongoose.connection.db,
+		collection: 'app_sessions'
+	});
+	
+
 	/* Express sub-app mounting to external app at a mount point (if specified) */
 	
 	if (mountPath) {
@@ -496,6 +538,7 @@ Keystone.prototype.mount = function(mountPath, parentApp, events) {
 		
 		parentApp.use(mountPath, app);
 	}
+	
 	
 	/* Keystone's encapsulated Express App Setup */
 	
@@ -587,11 +630,7 @@ Keystone.prototype.mount = function(mountPath, parentApp, events) {
 	app.use(sessionOpts.cookieParser);
 	
 	if (this.get('session store') == 'mongo') {
-		var MongoStore = require('connect-mongo')(expressSession);
-		sessionOpts.store = new MongoStore({
-			url: this.get('mongo'),
-			collection: 'app_sessions'
-		});
+		sessionOpts.store = sessionStore;
 	}
 	
 	app.use(expressSession(sessionOpts));
@@ -765,38 +804,6 @@ Keystone.prototype.mount = function(mountPath, parentApp, events) {
 	if ('function' === typeof this.get('routes')) {
 		this.get('routes')(app);
 	}
-	
-	// Connect to database
-	
-	var mongoConnectionOpen = false;
-	
-	this.mongoose.connect(this.get('mongo'));
-	this.mongoose.connection.on('error', function(err) {
-		
-		if (keystone.get('logger')) {
-			console.log('------------------------------------------------');
-			console.log('Mongo Error:\n');
-			console.log(err);
-		}
-		
-		if (mongoConnectionOpen) {
-			throw new Error("Mongo Error");
-		} else {
-			throw new Error("KeystoneJS (" + keystone.get('name') + ") failed to start");
-		}
-		
-	}).on('open', function() {
-		
-		// app is mounted and db connection acquired, time to update and then call back
-		
-		// Apply updates?
-		if (keystone.get('auto update')) {
-			keystone.applyUpdates(events.onMount);
-		} else {
-			events.onMount && events.onMount();
-		}
-		
-	});
 };
 
 /**
