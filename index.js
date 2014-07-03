@@ -616,7 +616,7 @@ Keystone.prototype.mount = function(mountPath, parentApp, events) {
 		app.use(logger(this.get('logger')));
 	}
 	
-	app.use(bodyParser());
+	app.use(bodyParser({defer: true}));
 	app.use(methodOverride());
 	
 	var secret = this.get('cookie secret') === null ? 'keystone':this.get('cookie secret');
