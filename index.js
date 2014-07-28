@@ -621,7 +621,7 @@ Keystone.prototype.mount = function(mountPath, parentApp, events) {
 	
 	var secret = this.get('cookie secret') === null ? 'keystone':this.get('cookie secret');
 	var sessionOpts = {
-		key: 'keystone.sid',
+		key: this.get('name') + '.sid',
 		secret: secret,
 		cookieParser: cookieParser(secret),
 		fingerprint: function(){ return ''; }
