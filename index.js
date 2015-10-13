@@ -624,7 +624,9 @@ Keystone.prototype.mount = function(mountPath, parentApp, events) {
 		key: this.get('name') + '.sid',
 		secret: secret,
 		cookieParser: cookieParser(secret),
-		fingerprint: function(){ return ''; }
+		fingerprint: function(){ return ''; },
+		resave: false,
+		saveUninitialized: false
 	};
 	
 	app.use(sessionOpts.cookieParser);
