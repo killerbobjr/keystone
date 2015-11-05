@@ -66,7 +66,9 @@ var Keystone = function() {
 	
 	this.express = express;
 	
-	
+	// expose logger
+	this._logger = logger;
+
 	// init environment defaults
 	
 	this.set('env', process.env.NODE_ENV || 'development');
