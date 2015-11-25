@@ -683,15 +683,15 @@ Keystone.prototype.mount = function(mountPath, parentApp, events) {
 		}
 	});
 	
-	if ('function' === typeof this.get('routes')) {
+	// Configure application routes
+	
+	if ('function' === typeof this.get('routes'))
 		this.get('routes')(app);
-	}
 
 	// Headless mode means don't bind the Keystone routes
 	
-	if (!this.get('headless')) {
+	else if (!this.get('headless'))
 		this.routes(app);
-	}
 	
 	// Handle redirects before 404s
 	
@@ -801,13 +801,7 @@ Keystone.prototype.mount = function(mountPath, parentApp, events) {
 		} else {
 			default500Handler(err, req, res, next);
 		}
-		
 	});
-	
-	// Configure application routes
-	if ('function' === typeof this.get('routes')) {
-		this.get('routes')(app);
-	}
 };
 
 /**
