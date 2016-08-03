@@ -491,8 +491,8 @@ Keystone.prototype.mount = function(mountPath, parentApp, events) {
 	// Connect to database
 	
 	var mongoConnectionOpen = false;
-	
-	this.mongoose.connect(this.get('mongo'));
+	var options = { promiseLibrary: require('bluebird') };
+	this.mongoose.connect(this.get('mongo'), options);
 	this.mongoose.connection.on('error', function(err) {
 		
 		if (keystone.get('logger')) {
@@ -508,6 +508,8 @@ Keystone.prototype.mount = function(mountPath, parentApp, events) {
 		}
 		
 	}).on('open', function() {
+		
+		keystone.mongoose.connection.setMaxListeners(0);
 		
 		// app is mounted and db connection acquired, time to update and then call back
 		
@@ -1733,7 +1735,7 @@ Keystone.prototype.populateRelated = function(docs, relationships, callback) {
 
 Keystone.prototype.wrapHTMLError = function(title, err) {
 	return "<html><head><meta charset='utf-8'><title>Error</title>" +
-	"<link rel='stylesheet' href='/keystone/styles/error.css'>" +
+	"<link rel='stylesheet' href='/assets/css/error.css'>" +
 	"</head><body><div class='error'><h1 class='error-title'>" + title + "</h1>" + "<div class='error-message'>" + (err || '') + "</div></div></body></html>";
 };
 
