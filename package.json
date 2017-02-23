@@ -31,7 +31,7 @@
     "marked": "~0.3.2",
     "method-override": "~1.0.0",
     "moment": "~2.6.0",
-    "mongo-morgan-ext": "git://github.com/killerbobjr/mongoose-morgan-ext.git",
+    "mongo-morgan-ext": "git+https://github.com/killerbobjr/mongo-morgan-ext.git",
     "mongoose": "*",
     "numeral": "~1.5.3",
     "queryfilter": "~0.0.4",
