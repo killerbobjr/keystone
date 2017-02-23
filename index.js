@@ -12,7 +12,7 @@ var fs = require('fs'),
 	mandrillapi = require('mandrill-api'),
 	utils = require('keystone-utils'),
 	compress = require('compression'),
-	logger = require('morgan'),
+	logger = require('mongo-morgan-ext'),
 	bodyParser = require('body-parser'),
 	methodOverride = require('method-override'),
 	cookieParser = require('cookie-parser'),
@@ -67,7 +67,7 @@ var Keystone = function() {
 	this.express = express;
 	
 	// expose logger
-	this._logger = logger;
+	this._logger = logger.morgan;
 
 	// init environment defaults
 	
@@ -615,8 +615,9 @@ Keystone.prototype.mount = function(mountPath, parentApp, events) {
 		
 		// Handle dynamic requests
 
-		if (keystone.get('logger')) {
-			app.use(logger(keystone.get('logger')));
+		if (keystone.get('logger'))
+		{
+			app.use(logger('mongodb://' + keystone.get('mongo'), 'log'));
 		}
 		
 		app.use(bodyParser({defer: true}));
