@@ -948,7 +948,7 @@ Keystone.prototype.start = function(events) {
 		}
 
 		// start the ssl server if configured
-		if (ssl) {
+		if (ssl === 'yes' || ssl === 'only') {
 
 			var sslOpts = {};
 
