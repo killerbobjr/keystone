@@ -5,7 +5,7 @@ var fs = require('fs'),
 	_ = require('underscore'),
 	express = require('express'),
 	async = require('async'),
-	jade = require('jade'),
+	jade = require('pug'),
 	moment = require('moment'),
 	numeral = require('numeral'),
 	cloudinary = require('cloudinary'),
@@ -569,8 +569,8 @@ Keystone.prototype.mount = function(mountPath, parentApp, events) {
 			app.use(compress());
 		}
 		
-		if (keystone.get('favico')) {
-			app.use(favicon(keystone.getPath('favico')));
+		if (keystone.get('favicon')) {
+			app.use(favicon(keystone.getPath('favicon')));
 		}
 		
 		if (keystone.get('less')) {
@@ -616,7 +616,8 @@ Keystone.prototype.mount = function(mountPath, parentApp, events) {
 			app.use(keystone.get('logger'));
 		}
 		
-		app.use(bodyParser({defer: true}));
+		app.use(bodyParser.urlencoded({extended: true}));
+		app.use(bodyParser.json());
 		app.use(methodOverride());
 		
 		var secret = keystone.get('cookie secret') === null ? 'keystone':keystone.get('cookie secret');
@@ -950,13 +951,29 @@ Keystone.prototype.start = function(events) {
 		// start the ssl server if configured
 		if (ssl === 'yes' || ssl === 'only') {
 
-			var sslOpts = {};
+			var	sslOpts = {},
+				cert = keystone.get('ssl cert'),
+				key = keystone.get('ssl key');
 
-			if (keystone.get('ssl cert') && fs.existsSync(keystone.getPath('ssl cert'))) {
-				sslOpts.cert = fs.readFileSync(keystone.getPath('ssl cert'));
-			}
-			if (keystone.get('ssl key') && fs.existsSync(keystone.getPath('ssl key'))) {
-				sslOpts.key = fs.readFileSync(keystone.getPath('ssl key'));
+			if (cert && key)
+			{
+				if(Buffer.isBuffer(cert))
+				{
+					sslOpts.cert = cert;
+				}
+				else if(fs.existsSync(cert)) 
+				{
+					sslOpts.cert = fs.readFileSync(cert);
+				}
+				
+				if(Buffer.isBuffer(key))
+				{
+					sslOpts.key = key;
+				}
+				else if (fs.existsSync(key))
+				{
+					sslOpts.key = fs.readFileSync(key);
+				}
 			}
 
 			if (!sslOpts.key || !sslOpts.cert) {
@@ -982,7 +999,7 @@ Keystone.prototype.start = function(events) {
 				events.onHttpsServerCreated && events.onHttpsServerCreated();
 
 				var sslHost = keystone.get('ssl host') || host,
-					sslPort = keystone.get('ssl port') || 3001;
+					sslPort = keystone.get('ssl port') || 443;
 
 				var httpsReadyMsg = (ssl === 'only') ? keystone.get('name') + ' (SSL) is ready on ' : 'SSL Server is ready on ';
 
@@ -1037,7 +1054,9 @@ Keystone.prototype.start = function(events) {
 
 Keystone.prototype.static = function(app) {
 
-	app.use('/keystone', require('less-middleware')({ src: __dirname + path.sep + 'public' }));
+	if(keystone.get('less')) {
+		app.use('/keystone', require('less-middleware')({ src: __dirname + path.sep + 'public' }));
+	}
 	app.use('/keystone', express.static(__dirname + path.sep + 'public'));
 
 	return this;
