@@ -17,6 +17,7 @@ var fs = require('fs'),
 	cookieParser = require('cookie-parser'),
 	expressSession = require('express-session'),
 	favicon = require('serve-favicon'),
+	bluebird = require('bluebird'),
 	MongoStore = require('connect-mongo/es5')(expressSession);
 
 var templateCache = {};
@@ -487,7 +488,8 @@ Keystone.prototype.mount = function(mountPath, parentApp, events) {
 	// Connect to database
 	
 	var mongoConnectionOpen = false;
-	var options = { promiseLibrary: require('bluebird') };
+	var options = { promiseLibrary: bluebird };
+	this.mongoose.Promise = bluebird;
 	this.mongoose.connect(this.get('mongo'), options);
 	this.mongoose.connection.on('error', function(err) {
 		
