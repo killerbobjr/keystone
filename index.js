@@ -18,7 +18,7 @@ var fs = require('fs'),
 	expressSession = require('express-session'),
 	favicon = require('serve-favicon'),
 	bluebird = require('bluebird'),
-	MongoStore = require('connect-mongo/es5')(expressSession);
+	MongoStore = require('connect-mongo')(expressSession);
 
 var templateCache = {};
 
