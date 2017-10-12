@@ -488,9 +488,9 @@ Keystone.prototype.mount = function(mountPath, parentApp, events) {
 	// Connect to database
 	
 	var mongoConnectionOpen = false;
-	var options = { promiseLibrary: bluebird };
+	var options = { promiseLibrary: bluebird, useMongoClient: true };
 	this.mongoose.Promise = bluebird;
-	this.mongoose.connect(this.get('mongo'), options);
+	this.mongoose.connect('mongodb://' + this.get('mongo'), options);
 	this.mongoose.connection.on('error', function(err) {
 		
 		if (keystone.get('logger')) {
