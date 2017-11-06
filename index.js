@@ -523,7 +523,7 @@ Keystone.prototype.mount = function(mountPath, parentApp, events) {
 		
 		var sessionStore = new MongoStore({
 			db: keystone.mongoose.connection.db,
-			collection: 'app_sessions',
+			collection: keystone.get('cookie collection') || 'app_sessions',
 			auto_reconnect: true
 		});
 		

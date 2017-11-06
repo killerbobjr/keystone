@@ -25,6 +25,7 @@
     "express-session": "*",
     "keystone-utils": "git://github.com/killerbobjr/keystone-utils.git",
     "knox": "*",
+    "less-middleware": "*",
     "mandrill-api": "*",
     "marked": "*",
     "method-override": "*",
