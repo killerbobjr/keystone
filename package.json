@@ -22,7 +22,6 @@
     "csv": "*",
     "embedly": "*",
     "express": "*",
-    "express-session": "*",
     "keystone-utils": "git://github.com/killerbobjr/keystone-utils.git",
     "knox": "*",
     "less-middleware": "*",

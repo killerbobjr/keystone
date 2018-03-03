@@ -15,10 +15,9 @@ var fs = require('fs'),
 	bodyParser = require('body-parser'),
 	methodOverride = require('method-override'),
 	cookieParser = require('cookie-parser'),
-	expressSession = require('express-session'),
+	cookieSession = require('cookie-session'),
 	favicon = require('serve-favicon'),
-	bluebird = require('bluebird'),
-	MongoStore = require('connect-mongo')(expressSession);
+	bluebird = require('bluebird');
 
 var templateCache = {};
 
@@ -518,16 +517,6 @@ Keystone.prototype.mount = function(mountPath, parentApp, events) {
 			events.onMount && events.onMount();
 		}
 
-		// Create a cookie store in the database. Must be connected before express loads its routes,
-		// otherwise the database TTL will expire before it connects
-		
-		var sessionStore = new MongoStore({
-			db: keystone.mongoose.connection.db,
-			collection: keystone.get('cookie collection') || 'app_sessions',
-			auto_reconnect: true
-		});
-		
-
 		/* Express sub-app mounting to external app at a mount point (if specified) */
 		
 		if (mountPath) {
@@ -623,24 +612,14 @@ Keystone.prototype.mount = function(mountPath, parentApp, events) {
 		app.use(methodOverride());
 		
 		var secret = keystone.get('cookie secret') === null ? 'keystone':keystone.get('cookie secret');
-		var sessionOpts = {
-			key: keystone.get('name') + '.sid',
-			secret: secret,
-			cookieParser: cookieParser(secret),
-			fingerprint: function(){ return ''; },
-			resave: false,
-			saveUninitialized: false
-		};
 		
-		app.use(sessionOpts.cookieParser);
-		
-		if (keystone.get('session store') == 'mongo') {
-			sessionOpts.store = sessionStore;
-		}
-		
-		app.use(expressSession(sessionOpts));
-		keystone.set('session options', sessionOpts);
-		
+		app.use(cookieSession(
+			{
+				name: keystone.get('name') + '.sid',
+				secret: secret,
+				domain: '.' + keystone.get('URI')
+			}));
+
 		app.use(require('connect-flash')());
 		
 		if (keystone.get('session') === true) {
