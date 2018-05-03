@@ -17,6 +17,7 @@ var fs = require('fs'),
 	cookieParser = require('cookie-parser'),
 	cookieSession = require('cookie-session'),
 	favicon = require('serve-favicon'),
+	lessMiddleware = require('less-middleware'),
 	bluebird = require('bluebird');
 
 var templateCache = {};
@@ -555,7 +556,6 @@ Keystone.prototype.mount = function(mountPath, parentApp, events) {
 		}
 		
 		// Serve static assets
-		
 		if (keystone.get('compress')) {
 			app.use(compress());
 		}
@@ -564,10 +564,9 @@ Keystone.prototype.mount = function(mountPath, parentApp, events) {
 			app.use(favicon(keystone.getPath('favicon')));
 		}
 		
-		if (keystone.get('less')) {
-			app.use(require('less-middleware')({
-				src: keystone.getPath('less')
-			}));
+		if (keystone.get('less'))
+		{
+			app.use(lessMiddleware(keystone.getPath('less'), keystone.get('less-options')));
 		}
 		
 		if (keystone.get('sass')) {
