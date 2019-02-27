@@ -614,7 +614,7 @@ Keystone.prototype.mount = function(mountPath, parentApp, events) {
 		
 		app.use(cookieSession(
 			{
-				name: keystone.get('name') + '.sid',
+				name: keystone.get('sessioncookie'),
 				secret: secret,
 				domain: '.' + keystone.get('URI')
 			}));
