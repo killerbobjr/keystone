@@ -11,7 +11,7 @@
     "async": "*",
     "azure": "*",
     "bcrypt-nodejs": "*",
-    "bluebird": "*",
+    "bluebird": "^3.5.4",
     "body-parser": "*",
     "cloudinary": "*",
     "compression": "*",

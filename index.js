@@ -566,7 +566,7 @@ Keystone.prototype.mount = function(mountPath, parentApp, events) {
 		
 		if (keystone.get('less'))
 		{
-			app.use(lessMiddleware(keystone.getPath('less'), keystone.get('less-options')));
+			app.use(lessMiddleware(keystone.get('less'), keystone.get('less-options')));
 		}
 		
 		if (keystone.get('sass')) {
@@ -1034,7 +1034,7 @@ Keystone.prototype.start = function(events) {
 
 Keystone.prototype.static = function(app) {
 
-	if(keystone.get('less')) {
+	if(keystone.get('less') && keystone.get('auth') === true) {
 		app.use('/keystone', require('less-middleware')({ src: __dirname + path.sep + 'public' }));
 	}
 	app.use('/keystone', express.static(__dirname + path.sep + 'public'));
