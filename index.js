@@ -612,12 +612,19 @@ Keystone.prototype.mount = function(mountPath, parentApp, events) {
 		
 		var secret = keystone.get('cookie secret') === null ? 'keystone':keystone.get('cookie secret');
 		
-		app.use(cookieSession(
-			{
-				name: keystone.get('sessioncookie'),
-				secret: secret,
-				domain: '.' + keystone.get('URI')
-			}));
+		if(keystone.get('cookiesession'))
+		{
+			app.use(keystone.get('cookiesession'));
+		}
+		else
+		{
+			app.use(cookieSession(
+				{
+					name: keystone.get('sessioncookie'),
+					secret: secret,
+					domain: '.' + keystone.get('URI')
+				}));
+		}
 
 		app.use(require('connect-flash')());
 		
