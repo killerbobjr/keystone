@@ -564,7 +564,11 @@ Keystone.prototype.mount = function(mountPath, parentApp, events) {
 			app.use(favicon(keystone.getPath('favicon')));
 		}
 		
-		if (keystone.get('less'))
+		if (keystone.get('less-middleware'))
+		{
+			app.use(keystone.get('less-middleware'));
+		}
+		else if (keystone.get('less'))
 		{
 			app.use(lessMiddleware(keystone.get('less'), keystone.get('less-options')));
 		}
