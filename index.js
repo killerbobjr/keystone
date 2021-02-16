@@ -475,7 +475,8 @@ Keystone.prototype.mount = function(mountPath, parentApp, events) {
 	this.nativeApp = true;
 	
 	var keystone = this,
-		app = this.app;
+		app = this.app,
+		sass;
 	
 	// default the mongo connection url
 	
@@ -566,33 +567,19 @@ Keystone.prototype.mount = function(mountPath, parentApp, events) {
 		
 		if (keystone.get('less-middleware'))
 		{
+			console.log('keystone - less-middleware');
 			app.use(keystone.get('less-middleware'));
 		}
 		else if (keystone.get('less'))
 		{
+			console.log('keystone - less-options');
 			app.use(lessMiddleware(keystone.get('less'), keystone.get('less-options')));
 		}
-		
-		if (keystone.get('sass')) {
-			try {
-				var sass = require('node-sass');
-			} catch(e) {
-				if (e.code == 'MODULE_NOT_FOUND') {
-					console.error(
-						'\nERROR: node-sass not found.\n' +
-						'\nPlease install the node-sass from npm to use the `sass` option.' +
-						'\nYou can do this by running "npm install node-sass --save".\n'
-					);
-					process.exit(1);
-				} else {
-					throw e;
-				}
-			}
-			app.use(sass.middleware({
-				src: keystone.getPath('sass'),
-				dest: keystone.getPath('sass'),
-				outputStyle: (keystone.get('env') == 'production') ? 'compressed' : 'nested'
-			}));
+		else if (keystone.get('sass-options'))
+		{
+			console.log('keystone - sass');
+			var sassMiddleware = require('node-sass-middleware');
+			app.use(sassMiddleware(keystone.get('sass-options')));
 		}
 		
 		if (keystone.get('static')) {
