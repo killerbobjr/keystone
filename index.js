@@ -567,17 +567,17 @@ Keystone.prototype.mount = function(mountPath, parentApp, events) {
 		
 		if (keystone.get('less-middleware'))
 		{
-			console.log('keystone - less-middleware');
+			console.log('KeystoneJS: using less-middleware');
 			app.use(keystone.get('less-middleware'));
 		}
 		else if (keystone.get('less'))
 		{
-			console.log('keystone - less-options');
+			console.log('KeystoneJS: using less-options');
 			app.use(lessMiddleware(keystone.get('less'), keystone.get('less-options')));
 		}
 		else if (keystone.get('sass-options'))
 		{
-			console.log('keystone - sass');
+			console.log('KeystoneJS: using sass-options');
 			var sassMiddleware = require('node-sass-middleware');
 			app.use(sassMiddleware(keystone.get('sass-options')));
 		}
