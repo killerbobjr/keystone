@@ -18,6 +18,7 @@ var fs = require('fs'),
 	cookieSession = require('cookie-session'),
 	favicon = require('serve-favicon'),
 	lessMiddleware = require('less-middleware'),
+	sassMiddleware = require('node-sass-middleware'),
 	bluebird = require('bluebird');
 
 var templateCache = {};
@@ -475,8 +476,7 @@ Keystone.prototype.mount = function(mountPath, parentApp, events) {
 	this.nativeApp = true;
 	
 	var keystone = this,
-		app = this.app,
-		sass;
+		app = this.app;
 	
 	// default the mongo connection url
 	
@@ -575,10 +575,14 @@ Keystone.prototype.mount = function(mountPath, parentApp, events) {
 			console.log('KeystoneJS: using less-options');
 			app.use(lessMiddleware(keystone.get('less'), keystone.get('less-options')));
 		}
+		if (keystone.get('sass-middleware'))
+		{
+			console.log('KeystoneJS: using sass-middleware');
+			app.use(keystone.get('sass-middleware'));
+		}
 		else if (keystone.get('sass-options'))
 		{
 			console.log('KeystoneJS: using sass-options');
-			var sassMiddleware = require('node-sass-middleware');
 			app.use(sassMiddleware(keystone.get('sass-options')));
 		}
 		
