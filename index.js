@@ -600,9 +600,20 @@ Keystone.prototype.mount = function(mountPath, parentApp, events) {
 		{
 			app.use(keystone.get('logger'));
 		}
-		
-		app.use(bodyParser.urlencoded({extended: true}));
-		app.use(bodyParser.json());
+
+		var	rawBodySaver = function (req, res, buf, encoding)
+			{
+				if (buf && buf.length)
+				{
+					req.rawBody = buf.toString(encoding || 'utf8');
+				}
+			};
+
+		// Saves raw body
+		app.use(bodyParser.json({ verify: rawBodySaver }));
+		app.use(bodyParser.urlencoded({ verify: rawBodySaver, extended: true }));
+		app.use(bodyParser.raw({ verify: rawBodySaver, type: '*/*' }));
+
 		app.use(methodOverride());
 		
 		var secret = keystone.get('cookie secret') === null ? 'keystone':keystone.get('cookie secret');
