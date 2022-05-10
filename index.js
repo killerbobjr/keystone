@@ -611,9 +611,7 @@ Keystone.prototype.mount = function(mountPath, parentApp, events) {
 
 		// Saves raw body
 		app.use(bodyParser.json({ verify: rawBodySaver }));
-		app.use(bodyParser.urlencoded({ verify: rawBodySaver, extended: true }));
-		app.use(bodyParser.raw({ verify: rawBodySaver, type: '*/*' }));
-
+		app.use(bodyParser.urlencoded({extended: true}));
 		app.use(methodOverride());
 		
 		var secret = keystone.get('cookie secret') === null ? 'keystone':keystone.get('cookie secret');
