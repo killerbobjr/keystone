@@ -675,8 +675,8 @@ Keystone.prototype.mount = function(mountPath, parentApp, events) {
 		
 		// Configure application routes
 		
-		if ('function' === typeof keystone.get('routes'))
-			keystone.get('routes')(app);
+		if ('function' === typeof keystone.get('router'))
+			keystone.get('router')(app);
 
 		// Headless mode means don't bind the Keystone routes
 		
@@ -694,6 +694,42 @@ Keystone.prototype.mount = function(mountPath, parentApp, events) {
 				}
 			});
 		}
+
+		// Handle 403 (no route matched) errors
+		
+		var default403Handler = function(req, res, next) {
+			res.status(403).send(keystone.wrapHTMLError("Sorry, no page could be found at this address (403)"));
+		};
+		
+		app.use(function(req, res, next) {
+			
+			var err403 = keystone.get('403');
+			
+			if (err403) {
+				try {
+					if ('function' === typeof err403) {
+						err403(req, res, next);
+					} else if ('string' === typeof err403) {
+						res.status(403).render(err403);
+					} else {
+						if (keystone.get('logger')) {
+							console.log(dashes + 'Error handling 403 (not found): Invalid type (' + (typeof err403) + ') for 403 setting.' + dashes);
+						}
+						default403Handler(req, res, next);
+					}
+				} catch(e) {
+					if (keystone.get('logger')) {
+						console.log(dashes + 'Error handling 403 (not found):');
+						console.log(e);
+						console.log(dashes);
+					}
+					default403Handler(req, res, next);
+				}
+			} else {
+				default403Handler(req, res, next);
+			}
+			
+		});
 		
 		// Handle 404 (no route matched) errors
 		
