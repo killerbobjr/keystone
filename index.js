@@ -335,20 +335,58 @@ keystone.Email = require('./lib/email');
  * @api public
  */
 
-Keystone.prototype.init = function(options) {
-	
-	this.options(options);
+Keystone.prototype.init = function(options, next)
+{
+	keystone.options(options);
 
-	if (!this.app) {
-		this.app = express();
+	if (!keystone.app)
+	{
+		keystone.app = express();
 	}
 
-	if (!this.mongoose) {
-		this.connect(require('mongoose'));
+	if (!keystone.mongoose)
+	{
+		keystone.connect(require('mongoose'));
+		
+		// default the mongo connection url
+		
+		if (!keystone.get('mongo'))
+		{
+			var dbName = keystone.get('db name') || utils.slug(keystone.get('name'));
+			var dbUrl = process.env.MONGO_URI || process.env.MONGO_URL || process.env.MONGOLAB_URI || process.env.MONGOLAB_URL || (process.env.OPENSHIFT_MONGODB_DB_URL || 'mongodb://localhost/') + dbName;
+			keystone.set('mongo', dbUrl);
+		}
+		
+		// Connect to database
+		
+		var mongoConnectionOpen = false;
+		var options = 
+			{ 
+				promiseLibrary: bluebird, 
+				useMongoClient: true 
+			};
+		keystone.mongoose.Promise = bluebird;
+		keystone.mongoose.connect('mongodb://' + keystone.get('mongo'), options);
+		keystone.mongoose.connection.on('error', function(err)
+		{
+			if (keystone.get('logger'))
+			{
+				console.log('------------------------------------------------');
+				console.log('Mongo Error:\n');
+				console.log(err);
+			}
+			
+			if (mongoConnectionOpen)
+			{
+				throw new Error("Mongo Error");
+			}
+			else
+			{
+				throw new Error("KeystoneJS (" + keystone.get('name') + ") failed to start");
+			}
+		})
+		.on('open', next);
 	}
-
-	return this;
-
 };
 
 /**
@@ -456,8 +494,8 @@ Keystone.prototype.initNav = function(sections) {
  * @api public
  */
 
-Keystone.prototype.mount = function(mountPath, parentApp, events) {
-	
+Keystone.prototype.mount = function(mountPath, parentApp, events)
+{
 	if (!this.app) {
 		throw new Error("KeystoneJS Initialisaton Error:\n\napp must be initialised. Call keystone.init() or keystone.connect(new Express()) first.\n\n");
 	}
@@ -475,323 +513,291 @@ Keystone.prototype.mount = function(mountPath, parentApp, events) {
 	
 	this.nativeApp = true;
 	
-	var keystone = this,
-		app = this.app;
+	var app = keystone.app;
+
+	keystone.mongoose.connection.setMaxListeners(0);
 	
-	// default the mongo connection url
+	// app is mounted and db connection acquired, time to update and then call back
 	
-	if (!this.get('mongo')) {
-		var dbName = this.get('db name') || utils.slug(this.get('name'));
-		var dbUrl = process.env.MONGO_URI || process.env.MONGO_URL || process.env.MONGOLAB_URI || process.env.MONGOLAB_URL || (process.env.OPENSHIFT_MONGODB_DB_URL || 'mongodb://localhost/') + dbName;
-		this.set('mongo', dbUrl);
+	// Apply updates?
+	if (keystone.get('auto update')) {
+		keystone.applyUpdates(events.onMount);
+	} else {
+		events.onMount && events.onMount();
 	}
+
+	/* Express sub-app mounting to external app at a mount point (if specified) */
 	
-	// Connect to database
-	
-	var mongoConnectionOpen = false;
-	var options = { promiseLibrary: bluebird, useMongoClient: true };
-	this.mongoose.Promise = bluebird;
-	this.mongoose.connect('mongodb://' + this.get('mongo'), options);
-	this.mongoose.connection.on('error', function(err) {
-		
-		if (keystone.get('logger')) {
-			console.log('------------------------------------------------');
-			console.log('Mongo Error:\n');
-			console.log(err);
-		}
-		
-		if (mongoConnectionOpen) {
-			throw new Error("Mongo Error");
-		} else {
-			throw new Error("KeystoneJS (" + keystone.get('name') + ") failed to start");
-		}
-		
-	}).on('open', function() {
-		
-		keystone.mongoose.connection.setMaxListeners(0);
-		
-		// app is mounted and db connection acquired, time to update and then call back
-		
-		// Apply updates?
-		if (keystone.get('auto update')) {
-			keystone.applyUpdates(events.onMount);
-		} else {
-			events.onMount && events.onMount();
-		}
-
-		/* Express sub-app mounting to external app at a mount point (if specified) */
-		
-		if (mountPath) {
-			//fix root-relative keystone urls for assets (gets around having to re-write all the keystone templates)
-			parentApp.all(/^\/keystone($|\/*)/, function(req, res, next) {
-				req.url = mountPath + req.url;
-				next();
-			});
-			
-			parentApp.use(mountPath, app);
-		}
-		
-		
-		/* Keystone's encapsulated Express App Setup */
-		
-		// Allow usage of custom view engines
-		
-		if (keystone.get('custom engine')) {
-			app.engine(keystone.get('view engine'), keystone.get('custom engine'));
-		}
-		
-		// Set location of view templates and view engine
-		
-		app.set('views', keystone.getPath('views') || path.sep + 'views');
-		app.set('view engine', keystone.get('view engine'));
-		
-		// Apply locals
-		
-		if (utils.isObject(keystone.get('locals'))) {
-			_.extend(app.locals, keystone.get('locals'));
-		}
-		
-		if (keystone.get('env') !== 'production') {
-			app.set('view cache', keystone.get('view caching off') === undefined ? true : keystone.get('view caching off'));
-			app.locals.pretty = true;
-		}
-		
-		// Serve static assets
-		if (keystone.get('compress')) {
-			app.use(compress());
-		}
-		
-		if (keystone.get('favicon')) {
-			app.use(favicon(keystone.getPath('favicon')));
-		}
-		
-		if (keystone.get('less-middleware'))
-		{
-			console.log('KeystoneJS: using less-middleware');
-			app.use(keystone.get('less-middleware'));
-		}
-		else if (keystone.get('less'))
-		{
-			console.log('KeystoneJS: using less-options');
-			app.use(lessMiddleware(keystone.get('less'), keystone.get('less-options')));
-		}
-		if (keystone.get('sass-middleware'))
-		{
-			console.log('KeystoneJS: using sass-middleware');
-			app.use(keystone.get('sass-middleware'));
-		}
-		else if (keystone.get('sass-options'))
-		{
-			console.log('KeystoneJS: using sass-options');
-			app.use(sassMiddleware(keystone.get('sass-options')));
-		}
-		
-		if (keystone.get('static')) {
-			app.use(express.static(keystone.getPath('static')));
-		}
-		
-		if (!keystone.get('headless')) {
-			keystone.static(app);
-		}
-		
-		// Handle dynamic requests
-
-		if (keystone.get('logger'))
-		{
-			app.use(keystone.get('logger'));
-		}
-
-		var	rawBodySaver = function (req, res, buf, encoding)
-			{
-				if (buf && buf.length)
-				{
-					req.rawBody = buf.toString(encoding || 'utf8');
-				}
-			};
-
-		// Saves raw body
-		app.use(bodyParser.json({ verify: rawBodySaver }));
-		app.use(bodyParser.urlencoded({extended: true}));
-		app.use(methodOverride());
-		
-		var secret = keystone.get('cookie secret') === null ? 'keystone':keystone.get('cookie secret');
-		
-		if(keystone.get('cookiesession'))
-		{
-			app.use(keystone.get('cookiesession'));
-		}
-		else
-		{
-			app.use(cookieSession(
-				{
-					name: keystone.get('sessioncookie'),
-					secret: secret,
-					domain: '.' + keystone.get('URI')
-				}));
-		}
-
-		app.use(require('connect-flash')());
-		
-		if (keystone.get('session') === true) {
-			app.use(keystone.session.persist);
-		} else if ('function' === typeof keystone.get('session')) {
-			app.use(keystone.get('session'));
-		}
-		
-		// Process 'X-Forwarded-For' request header
-		
-		if (keystone.get('trust proxy') === true) {
-			app.enable('trust proxy');
-		} else {
-			app.disable('trust proxy');
-		}
-		
-		// Check for IP range restrictions
-		
-		if (keystone.get('allowed ip ranges')) {
-			if (!app.route.get('trust proxy')) {
-				throw new Error("KeystoneJS Initialisaton Error:\n\nto set IP range restrictions the 'trust proxy' setting must be enabled.\n\n");
-			}
-			var ipRangeMiddleware = require('./lib/security').ipRangeRestrict(
-				keystone.get('allowed ip ranges'),
-				keystone.wrapHTMLError
-			);
-			keystone.pre('routes', ipRangeMiddleware);
-		}
-		
-		// Pre-route middleware
-		
-		keystone._pre.routes.forEach(function(fn) {
-			try {
-				app.use(fn);
-			}
-			catch(e) {
-				if (keystone.get('logger')) {
-					console.log('Invalid pre-route middleware provided');
-				}
-				throw e;
-			}
+	if (mountPath) {
+		//fix root-relative keystone urls for assets (gets around having to re-write all the keystone templates)
+		parentApp.all(/^\/keystone($|\/*)/, function(req, res, next) {
+			req.url = mountPath + req.url;
+			next();
 		});
 		
-		// Configure application routes
-		
-		if ('function' === typeof keystone.get('router'))
-			keystone.get('router')(app);
+		parentApp.use(mountPath, app);
+	}
+	
+	
+	/* Keystone's encapsulated Express App Setup */
+	
+	// Allow usage of custom view engines
+	
+	if (keystone.get('custom engine')) {
+		app.engine(keystone.get('view engine'), keystone.get('custom engine'));
+	}
+	
+	// Set location of view templates and view engine
+	
+	app.set('views', keystone.getPath('views') || path.sep + 'views');
+	app.set('view engine', keystone.get('view engine'));
+	
+	// Apply locals
+	
+	if (utils.isObject(keystone.get('locals'))) {
+		_.extend(app.locals, keystone.get('locals'));
+	}
+	
+	if (keystone.get('env') !== 'production') {
+		app.set('view cache', keystone.get('view caching off') === undefined ? true : keystone.get('view caching off'));
+		app.locals.pretty = true;
+	}
+	
+	// Serve static assets
+	if (keystone.get('compress')) {
+		app.use(compress());
+	}
+	
+	if (keystone.get('favicon')) {
+		app.use(favicon(keystone.getPath('favicon')));
+	}
+	
+	if (keystone.get('less-middleware'))
+	{
+		console.log('KeystoneJS: using less-middleware');
+		app.use(keystone.get('less-middleware'));
+	}
+	else if (keystone.get('less'))
+	{
+		console.log('KeystoneJS: using less-options');
+		app.use(lessMiddleware(keystone.get('less'), keystone.get('less-options')));
+	}
+	if (keystone.get('sass-middleware'))
+	{
+		console.log('KeystoneJS: using sass-middleware');
+		app.use(keystone.get('sass-middleware'));
+	}
+	else if (keystone.get('sass-options'))
+	{
+		console.log('KeystoneJS: using sass-options');
+		app.use(sassMiddleware(keystone.get('sass-options')));
+	}
+	
+	if (keystone.get('static')) {
+		app.use(express.static(keystone.getPath('static')));
+	}
+	
+	if (!keystone.get('headless')) {
+		keystone.static(app);
+	}
+	
+	// Handle dynamic requests
 
-		// Headless mode means don't bind the Keystone routes
-		
-		else if (!keystone.get('headless'))
-			keystone.routes(app);
-		
-		// Handle redirects before 404s
-		
-		if (Object.keys(keystone._redirects).length) {
-			app.use(function(req, res, next) {
-				if (keystone._redirects[req.path]) {
-					res.redirect(keystone._redirects[req.path]);
-				} else {
-					next();
-				}
-			});
-		}
+	if (keystone.get('logger'))
+	{
+		app.use(keystone.get('logger'));
+	}
 
-		// Handle 404 (no route matched) errors
-		
-		var default404Handler = function(req, res, next) {
-			res.status(404).send(keystone.wrapHTMLError("No page could be found at this address (404)"));
+	var	rawBodySaver = function (req, res, buf, encoding)
+		{
+			if (buf && buf.length)
+			{
+				req.rawBody = buf.toString(encoding || 'utf8');
+			}
 		};
-		
+
+	// Saves raw body
+	app.use(bodyParser.json({ verify: rawBodySaver }));
+	app.use(bodyParser.urlencoded({extended: true}));
+	app.use(methodOverride());
+	
+	var secret = keystone.get('cookie secret') === null ? 'keystone':keystone.get('cookie secret');
+	
+	if(keystone.get('cookiesession'))
+	{
+		app.use(keystone.get('cookiesession'));
+	}
+	else
+	{
+		app.use(cookieSession(
+			{
+				name: keystone.get('sessioncookie'),
+				secret: secret,
+				domain: '.' + keystone.get('URI')
+			}));
+	}
+
+	app.use(require('connect-flash')());
+	
+	if (keystone.get('session') === true) {
+		app.use(keystone.session.persist);
+	} else if ('function' === typeof keystone.get('session')) {
+		app.use(keystone.get('session'));
+	}
+	
+	// Process 'X-Forwarded-For' request header
+	
+	if (keystone.get('trust proxy') === true) {
+		app.enable('trust proxy');
+	} else {
+		app.disable('trust proxy');
+	}
+	
+	// Check for IP range restrictions
+	
+	if (keystone.get('allowed ip ranges')) {
+		if (!app.route.get('trust proxy')) {
+			throw new Error("KeystoneJS Initialisaton Error:\n\nto set IP range restrictions the 'trust proxy' setting must be enabled.\n\n");
+		}
+		var ipRangeMiddleware = require('./lib/security').ipRangeRestrict(
+			keystone.get('allowed ip ranges'),
+			keystone.wrapHTMLError
+		);
+		keystone.pre('routes', ipRangeMiddleware);
+	}
+	
+	// Pre-route middleware
+	
+	keystone._pre.routes.forEach(function(fn) {
+		try {
+			app.use(fn);
+		}
+		catch(e) {
+			if (keystone.get('logger')) {
+				console.log('Invalid pre-route middleware provided');
+			}
+			throw e;
+		}
+	});
+	
+	// Configure application routes
+	
+	if ('function' === typeof keystone.get('router'))
+		keystone.get('router')(app);
+
+	// Headless mode means don't bind the Keystone routes
+	
+	else if (!keystone.get('headless'))
+		keystone.routes(app);
+	
+	// Handle redirects before 404s
+	
+	if (Object.keys(keystone._redirects).length) {
 		app.use(function(req, res, next) {
-			
-			var err404 = keystone.get('404');
-			
-			if (err404) {
-				try {
-					if ('function' === typeof err404) {
-						err404(req, res, next);
-					} else if ('string' === typeof err404) {
-						res.status(404).render(err404);
-					} else {
-						if (keystone.get('logger')) {
-							console.log(dashes + 'Error handling 404 (not found): Invalid type (' + (typeof err404) + ') for 404 setting.' + dashes);
-						}
-						default404Handler(req, res, next);
-					}
-				} catch(e) {
+			if (keystone._redirects[req.path]) {
+				res.redirect(keystone._redirects[req.path]);
+			} else {
+				next();
+			}
+		});
+	}
+
+	// Handle 404 (no route matched) errors
+	
+	var default404Handler = function(req, res, next) {
+		res.status(404).send(keystone.wrapHTMLError("No page could be found at this address (404)"));
+	};
+	
+	app.use(function(req, res, next) {
+		
+		var err404 = keystone.get('404');
+		
+		if (err404) {
+			try {
+				if ('function' === typeof err404) {
+					err404(req, res, next);
+				} else if ('string' === typeof err404) {
+					res.status(404).render(err404);
+				} else {
 					if (keystone.get('logger')) {
-						console.log(dashes + 'Error handling 404 (not found):');
-						console.log(e);
-						console.log(dashes);
+						console.log(dashes + 'Error handling 404 (not found): Invalid type (' + (typeof err404) + ') for 404 setting.' + dashes);
 					}
 					default404Handler(req, res, next);
 				}
-			} else {
+			} catch(e) {
+				if (keystone.get('logger')) {
+					console.log(dashes + 'Error handling 404 (not found):');
+					console.log(e);
+					console.log(dashes);
+				}
 				default404Handler(req, res, next);
 			}
-			
-		});
+		} else {
+			default404Handler(req, res, next);
+		}
 		
-		// Handle other errors
+	});
+	
+	// Handle other errors
+	
+	var default500Handler = function(err, req, res, next) {
 		
-		var default500Handler = function(err, req, res, next) {
+		if (keystone.get('logger')) {
+			if (err instanceof Error) {
+				console.log((err.type ? err.type + ' ' : '') + 'Error thrown for request: ' + req.url);
+			} else {
+				console.log('Error thrown for request: ' + req.url);
+			}
+			console.log(err.stack || err);
+		}
+		
+		var msg = '';
+		
+		if (keystone.get('env') === 'development') {
 			
-			if (keystone.get('logger')) {
-				if (err instanceof Error) {
-					console.log((err.type ? err.type + ' ' : '') + 'Error thrown for request: ' + req.url);
+			if (err instanceof Error) {
+				if (err.type) {
+					msg += '<h2>' + err.type + '</h2>';
+				}
+				msg += utils.textToHTML(err.message);
+			} else if ('object' === typeof err) {
+				msg += '<code>' + JSON.stringify(err) + '</code>';
+			} else if (err) {
+				msg += err;
+			}
+		}
+		
+		res.status(500).send(keystone.wrapHTMLError("The server encountered an error (500)", msg));
+	};
+	
+	app.use(function(err, req, res, next) {
+		
+		var err500 = keystone.get('500');
+		
+		if (err500) {
+			try {
+				if ('function' === typeof err500) {
+					err500(err, req, res, next);
+				} else if ('string' === typeof err500) {
+					res.locals.err = err;
+					res.status(500).render(err500);
 				} else {
-					console.log('Error thrown for request: ' + req.url);
-				}
-				console.log(err.stack || err);
-			}
-			
-			var msg = '';
-			
-			if (keystone.get('env') === 'development') {
-				
-				if (err instanceof Error) {
-					if (err.type) {
-						msg += '<h2>' + err.type + '</h2>';
-					}
-					msg += utils.textToHTML(err.message);
-				} else if ('object' === typeof err) {
-					msg += '<code>' + JSON.stringify(err) + '</code>';
-				} else if (err) {
-					msg += err;
-				}
-			}
-			
-			res.status(500).send(keystone.wrapHTMLError("The server encountered an error (500)", msg));
-		};
-		
-		app.use(function(err, req, res, next) {
-			
-			var err500 = keystone.get('500');
-			
-			if (err500) {
-				try {
-					if ('function' === typeof err500) {
-						err500(err, req, res, next);
-					} else if ('string' === typeof err500) {
-						res.locals.err = err;
-						res.status(500).render(err500);
-					} else {
-						if (keystone.get('logger')) {
-							console.log(dashes + 'Error handling 500 (error): Invalid type (' + (typeof err500) + ') for 500 setting.' + dashes);
-						}
-						default500Handler(err, req, res, next);
-					}
-				} catch(e) {
 					if (keystone.get('logger')) {
-						console.log(dashes + 'Error handling 500 (error):');
-						console.log(e);
-						console.log(dashes);
+						console.log(dashes + 'Error handling 500 (error): Invalid type (' + (typeof err500) + ') for 500 setting.' + dashes);
 					}
 					default500Handler(err, req, res, next);
 				}
-			} else {
+			} catch(e) {
+				if (keystone.get('logger')) {
+					console.log(dashes + 'Error handling 500 (error):');
+					console.log(e);
+					console.log(dashes);
+				}
 				default500Handler(err, req, res, next);
 			}
-		});
+		} else {
+			default500Handler(err, req, res, next);
+		}
 	});
 };
 
