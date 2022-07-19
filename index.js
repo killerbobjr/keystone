@@ -366,7 +366,7 @@ Keystone.prototype.init = function(options, next)
 				useMongoClient: true 
 			};
 		keystone.mongoose.Promise = bluebird;
-		keystone.mongoose.connect('mongodb://' + keystone.get('mongo'), options);
+		keystone.mongoose.connect('mongodb://' + keystone.get('mongo'));
 		keystone.mongoose.connection.on('error', function(err)
 		{
 			if (keystone.get('logger'))
@@ -386,6 +386,10 @@ Keystone.prototype.init = function(options, next)
 			}
 		})
 		.on('open', next);
+	}
+	else
+	{
+		next();
 	}
 };
 
