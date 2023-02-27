@@ -9,11 +9,9 @@
   },
   "dependencies": {
     "async": "^2.6.3",
-    "azure": "^2.3.1-preview",
     "bcrypt-nodejs": "^0.0.3",
     "bluebird": "^3.5.5",
     "body-parser": "^1.19.0",
-    "cloudinary": "^1.14.0",
     "compression": "^1.7.4",
     "connect-flash": "^0.1.1",
     "connect-mongo": "^3.0.0",

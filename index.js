@@ -8,7 +8,6 @@ var fs = require('fs'),
 	jade = require('pug'),
 	moment = require('moment'),
 	numeral = require('numeral'),
-	cloudinary = require('cloudinary'),
 	mandrillapi = require('mandrill-api'),
 	utils = require('keystone-utils'),
 	compress = require('compression'),
@@ -97,15 +96,6 @@ var Keystone = function() {
 		this.set('s3 config', { bucket: process.env.S3_BUCKET, key: process.env.S3_KEY, secret: process.env.S3_SECRET, region: process.env.S3_REGION });
 	}
 	
-	if (process.env.AZURE_STORAGE_ACCOUNT && process.env.AZURE_STORAGE_ACCESS_KEY) {
-		this.set('azurefile config', { account: process.env.AZURE_STORAGE_ACCOUNT, key: process.env.AZURE_STORAGE_ACCESS_KEY });
-	}
-	
-	if (process.env.CLOUDINARY_URL) {
-		// process.env.CLOUDINARY_URL is processed by the cloudinary package when this is set
-		this.set('cloudinary config', true);
-	}
-	
 	this.initAPI = require('./lib/middleware/initAPI')(this);
 	
 };
@@ -146,12 +136,6 @@ var remappedOptions = {
 
 	// handle special settings
 	switch (key) {
-		case 'cloudinary config':
-			if (_.isObject(value)) {
-				cloudinary.config(value);
-			}
-			value = cloudinary.config();
-		break;
 		case 'mandrill api key':
 			if (value) {
 				this.mandrillAPI = new mandrillapi.Mandrill(value);
@@ -1135,14 +1119,6 @@ Keystone.prototype.routes = function(app) {
 		this.bindEmailTestRoutes(app, this.get('email tests'));
 	}
 
-	// Cloudinary API for image uploading (only if Cloudinary is configured)
-	if (keystone.get('wysiwyg cloudinary images')) {
-		if (!keystone.get('cloudinary config')) {
-			throw new Error("KeystoneJS Initialisaton Error:\n\nTo use wysiwyg cloudinary images, the 'cloudinary config' setting must be configured.\n\n");
-		}
-		app.post('/keystone/api/cloudinary/upload', require('./routes/api/cloudinary').upload);
-	}
-
 	// Generic Lists API
 	app.all('/keystone/api/:list/:action', initList(), require('./routes/api/list'));
 
@@ -1679,42 +1655,14 @@ Keystone.prototype.render = function(req, res, view, ext) {
 		ga: {
 			property: this.get('ga property'),
 			domain: this.get('ga domain')
-		},
-		wysiwygOptions: {
-			enableImages: keystone.get('wysiwyg images') ? true : false,
-			enableCloudinaryUploads: keystone.get('wysiwyg cloudinary images') ? true : false,
-			additionalButtons: keystone.get('wysiwyg additional buttons') || ''
 		}
 	};
 
 	// optional extensions to the local scope
 	_.extend(locals, ext);
 
-	// add cloudinary locals if configured
-	if (keystone.get('cloudinary config')) {
-		try {
-			var cloudinaryUpload = cloudinary.uploader.direct_upload();
-			locals.cloudinary = {
-				cloud_name: keystone.get('cloudinary config').cloud_name,
-				api_key: keystone.get('cloudinary config').api_key,
-				timestamp: cloudinaryUpload.hidden_fields.timestamp,
-				signature: cloudinaryUpload.hidden_fields.signature,
-				prefix: keystone.get('cloudinary prefix') || '',
-				uploader: cloudinary.uploader
-			};
-			locals.cloudinary_js_config = cloudinary.cloudinary_js_config();
-		} catch(e) {
-			if (e === 'Must supply api_key') {
-				throw new Error('Invalid Cloudinary Config Provided\n\n' +
-					'See http://keystonejs.com/docs/configuration/#cloudinary for more information.');
-			} else {
-				throw e;
-			}
-		}
-	}
-
 	// fieldLocals defines locals that are provided to each field's `render` method
-	locals.fieldLocals = _.pick(locals, '_', 'moment', 'numeral', 'env', 'js', 'utils', 'user', 'cloudinary');
+	locals.fieldLocals = _.pick(locals, '_', 'moment', 'numeral', 'env', 'js', 'utils', 'user');
 
 	var html = template(_.extend(locals, ext));
 
