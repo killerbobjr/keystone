@@ -28,7 +28,7 @@
     "method-override": "^3.0.0",
     "minimatch": "^3.0.4",
     "moment": "^2.24.0",
-    "mongoose": "^4.13.19",
+    "mongoose": "^7.1.0",
     "ms": "^2.1.2",
     "node-sass-middleware": "https://github.com/killerbobjr/node-sass-middleware.git",
     "numeral": "^2.0.6",

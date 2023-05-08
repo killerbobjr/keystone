@@ -350,7 +350,7 @@ Keystone.prototype.init = function(options, next)
 				useMongoClient: true 
 			};
 		keystone.mongoose.Promise = bluebird;
-		keystone.mongoose.connect('mongodb://' + keystone.get('mongo'));
+		keystone.mongoose.connect('mongodb://' + keystone.get('mongo'), {useNewUrlParser: true,useUnifiedTopology: true,});
 		keystone.mongoose.connection.on('error', function(err)
 		{
 			if (keystone.get('logger'))
