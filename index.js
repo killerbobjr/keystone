@@ -11,7 +11,7 @@ var fs = require('fs'),
 	mandrillapi = require('mandrill-api'),
 	utils = require('keystone-utils'),
 	compress = require('compression'),
-	bodyParser = require('body-parser'),
+	//bodyParser = require('body-parser'),
 	methodOverride = require('method-override'),
 	cookieParser = require('cookie-parser'),
 	cookieSession = require('cookie-session'),
@@ -605,8 +605,9 @@ Keystone.prototype.mount = function(mountPath, parentApp, events)
 		};
 
 	// Saves raw body
-	app.use(bodyParser.json({ verify: rawBodySaver }));
-	app.use(bodyParser.urlencoded({extended: true}));
+	app.use(express.raw({ limit: keystone.get('uploadlimit') }));
+	app.use(express.json({ verify: rawBodySaver, limit: keystone.get('uploadlimit') }));
+	app.use(express.urlencoded({extended: true, limit: keystone.get('uploadlimit')}));
 	app.use(methodOverride());
 	
 	var secret = keystone.get('cookie secret') === null ? 'keystone':keystone.get('cookie secret');
